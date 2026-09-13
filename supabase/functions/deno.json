@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.109.0",
+    "zod": "npm:zod@3.24.1"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "lib": ["deno.window", "esnext"]
+  },
+  "lint": { "rules": { "tags": ["recommended"] } }
+}
