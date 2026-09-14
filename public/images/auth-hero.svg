@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Abstract market chart artwork">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="45%" stop-color="#132a4d"/>
+      <stop offset="100%" stop-color="#0a1a2e"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#16c784" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#16c784" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#16c784" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#sky)"/>
+  <circle cx="980" cy="330" r="520" fill="url(#glow)"/>
+  <g stroke="#ffffff" stroke-opacity="0.06" stroke-width="2">
+    <path d="M0 400H1200M0 640H1200M0 880H1200M0 1120H1200M0 1360H1200"/>
+    <path d="M200 0V1600M440 0V1600M680 0V1600M920 0V1600"/>
+  </g>
+  <path d="M0 1180 L150 1090 L300 1140 L450 940 L600 1010 L750 780 L900 860 L1050 620 L1200 690 L1200 1600 L0 1600 Z" fill="url(#fill)"/>
+  <path d="M0 1180 L150 1090 L300 1140 L450 940 L600 1010 L750 780 L900 860 L1050 620 L1200 690"
+        fill="none" stroke="#16c784" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#ffffff" fill-opacity="0.85">
+    <circle cx="450" cy="940" r="9"/><circle cx="750" cy="780" r="9"/><circle cx="1050" cy="620" r="9"/>
+  </g>
+</svg>

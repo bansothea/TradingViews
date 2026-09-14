@@ -39,6 +39,7 @@ export interface Database {
           id: string;
           email: string | null;
           full_name: string | null;
+          avatar_url: string | null;
           tier: SubscriptionTier;
           created_at: string;
           updated_at: string;
@@ -47,11 +48,13 @@ export interface Database {
           id: string;
           email?: string | null;
           full_name?: string | null;
+          avatar_url?: string | null;
           tier?: SubscriptionTier;
         };
         Update: {
           email?: string | null;
           full_name?: string | null;
+          avatar_url?: string | null;
           tier?: SubscriptionTier;
         };
         Relationships: [];

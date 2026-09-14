@@ -23,7 +23,7 @@ export function SignalPanel() {
           aria-label="Trading pair"
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+          className="rounded-lg border border-line bg-panel px-3 py-2 text-sm"
         >
           {SUPPORTED_SYMBOLS.map((s) => (
             <option key={s} value={s}>{s}</option>
@@ -34,7 +34,7 @@ export function SignalPanel() {
           aria-label="Timeframe"
           value={timeframe}
           onChange={(e) => setTimeframe(e.target.value)}
-          className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm"
+          className="rounded-lg border border-line bg-panel px-3 py-2 text-sm"
         >
           {TIMEFRAMES.map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -44,7 +44,7 @@ export function SignalPanel() {
         <button
           onClick={() => generate.mutate({ symbol, timeframe })}
           disabled={generate.isPending}
-          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-emerald-400 disabled:opacity-60"
+          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-app hover:bg-emerald-400 disabled:opacity-60"
         >
           {generate.isPending ? "Analyzing…" : "Generate signal"}
         </button>
@@ -58,9 +58,9 @@ export function SignalPanel() {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-800">
+      <div className="overflow-x-auto rounded-xl border border-line">
         <table className="w-full text-left text-sm">
-          <thead className="bg-neutral-900 text-xs uppercase text-neutral-500">
+          <thead className="bg-panel text-xs uppercase text-fg0">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">Pair</th>
               <th scope="col" className="px-4 py-3 font-medium">TF</th>
@@ -70,24 +70,24 @@ export function SignalPanel() {
               <th scope="col" className="px-4 py-3 font-medium">Generated</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-800">
+          <tbody className="divide-y divide-line">
             {isPending ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-500">Loading…</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-fg0">Loading…</td></tr>
             ) : !signals?.length ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-500">
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-fg0">
                 No signals yet. Generate one to get started.
               </td></tr>
             ) : (
               signals.map((s) => (
-                <tr key={s.id} className="hover:bg-neutral-900/50">
+                <tr key={s.id} className="hover:bg-panel/50">
                   <td className="px-4 py-3 font-medium">{s.symbol}</td>
-                  <td className="px-4 py-3 text-neutral-400">{s.timeframe}</td>
+                  <td className="px-4 py-3 text-fg-muted">{s.timeframe}</td>
                   <td className="px-4 py-3"><SignalBadge action={s.action} /></td>
                   <td className="px-4 py-3 tabular-nums">{Number(s.price).toLocaleString()}</td>
-                  <td className="px-4 py-3 tabular-nums text-neutral-400">
+                  <td className="px-4 py-3 tabular-nums text-fg-muted">
                     {s.confidence ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-neutral-500">
+                  <td className="px-4 py-3 text-fg0">
                     {new Date(s.created_at).toLocaleString()}
                   </td>
                 </tr>

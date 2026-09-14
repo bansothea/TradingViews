@@ -1,6 +1,33 @@
 /**
- * Route access rules, kept in one place so middleware and UI agree.
+ * Route access rules and the primary navigation, kept in one place so
+ * middleware, the nav bar and the auth redirects cannot drift apart.
  */
+
+/** Where a signed-in user lands: after login, signup, OAuth and "/" . */
+export const DEFAULT_AUTHED_ROUTE = "/markets";
+
+export type NavId = "markets" | "chart" | "explore";
+
+export interface NavItem {
+  id: NavId;
+  href: string;
+  label: string;
+}
+
+/** Order here is the order shown in both the desktop and mobile nav. */
+export const APP_NAV: NavItem[] = [
+  { id: "markets", href: "/markets", label: "Market" },
+  { id: "chart", href: "/chart", label: "Chart" },
+  { id: "explore", href: "/explore", label: "Explore" },
+];
+
+/**
+ * Marks a nav item active for the page itself and anything nested under it,
+ * so /chart/BTCUSDT still highlights Chart.
+ */
+export function isActiveNav(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /** Reachable without a session. */
 export const PUBLIC_ROUTES = ["/", "/pricing", "/about"] as const;

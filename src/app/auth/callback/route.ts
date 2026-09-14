@@ -1,18 +1,32 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DEFAULT_AUTHED_ROUTE } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * PKCE / email-confirmation landing point. Supabase redirects here with a
- * `code` which must be exchanged for a session cookie. Without this route,
- * email confirmation and every OAuth provider silently fail.
+ * PKCE landing point for email confirmation, password recovery and every
+ * OAuth provider. Supabase redirects here with a `code` that must be exchanged
+ * for a session cookie; without this route those flows all dead-end.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? DEFAULT_AUTHED_ROUTE;
 
   // Only allow relative redirects, otherwise `next` is an open redirect.
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  const safeNext =
+    next.startsWith("/") && !next.startsWith("//") ? next : DEFAULT_AUTHED_ROUTE;
+
+  // Providers report a refusal (consent denied, account mismatch) on the query
+  // string rather than by omitting the code. Surface that, don't call it
+  // "missing code".
+  const providerError =
+    searchParams.get("error_description") ?? searchParams.get("error");
+
+  if (providerError) {
+    return NextResponse.redirect(
+      `${origin}/auth/error?reason=${encodeURIComponent(providerError)}`
+    );
+  }
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/error?reason=missing_code`);

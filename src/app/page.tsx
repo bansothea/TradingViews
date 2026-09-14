@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_AUTHED_ROUTE } from "@/lib/routes";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -7,5 +8,5 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  redirect(user ? "/dashboard" : "/auth/login");
+  redirect(user ? DEFAULT_AUTHED_ROUTE : "/auth/login");
 }

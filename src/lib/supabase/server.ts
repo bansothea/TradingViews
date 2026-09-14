@@ -2,9 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { clientEnv } from "@/lib/env";
 import type { Database } from "@/types/database";
+import {
+  REMEMBER_COOKIE,
+  parseRemember,
+  withRememberPreference,
+} from "./cookies";
 
-export async function createClient() {
+/**
+ * @param remember Overrides the stored "Remember me" preference. Pass it from
+ * the sign-in action, where the user's choice is known before the flag cookie
+ * has been read back.
+ */
+export async function createClient(options?: { remember?: boolean }) {
   const cookieStore = await cookies();
+  const remember =
+    options?.remember ?? parseRemember(cookieStore.get(REMEMBER_COOKIE)?.value);
 
   return createServerClient<Database>(
     clientEnv.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,8 +28,8 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+            withRememberPreference(cookiesToSet, remember).forEach(
+              ({ name, value, options }) => cookieStore.set(name, value, options)
             );
           } catch {
             // Called from a Server Component, where cookies are read-only.
