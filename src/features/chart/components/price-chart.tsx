@@ -28,11 +28,14 @@ import type { Candle } from "@/lib/markets/binance";
  */
 export function PriceChart({
   candles,
+  liveCandle,
   precision,
   interval,
   symbol,
 }: {
   candles: Candle[];
+  /** The forming candle from the WebSocket, applied on top of the snapshot. */
+  liveCandle?: Candle | null;
   /** Decimal places for the price axis; varies wildly between BTC and PEPE. */
   precision: number;
   interval: string;
@@ -149,6 +152,26 @@ export function PriceChart({
     series.setData(data);
     if (range) chart.timeScale().setVisibleLogicalRange(range);
   }, [candles, symbol, interval]);
+
+  // Live ticks: update() touches only the last bar, so it costs nothing and
+  // leaves the viewport alone. setData() here would fight the user's zoom
+  // several times a second.
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series || !liveCandle) return;
+
+    // Guard against a tick from the previous pair arriving after a switch: the
+    // series would gain a bar from the wrong market.
+    if (viewKeyRef.current !== `${symbol}:${interval}`) return;
+
+    series.update({
+      time: liveCandle.time as Time,
+      open: liveCandle.open,
+      high: liveCandle.high,
+      low: liveCandle.low,
+      close: liveCandle.close,
+    });
+  }, [liveCandle, symbol, interval]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

@@ -6,18 +6,20 @@ export const marketKeys = {
 };
 
 /**
- * Polls the markets proxy on a short interval.
+ * Loads the markets snapshot.
  *
- * Polling rather than a Binance WebSocket on purpose: the socket would have to
- * be opened from the browser, which reintroduces the regional blocking the
- * server proxy exists to avoid. The route is cached for a few seconds, so this
- * is cheap. Swapping in a stream later only changes this hook.
+ * Live prices arrive over a WebSocket (see useMarketStream); this provides the
+ * first paint and the fields the ticker stream does not carry. When the socket
+ * is connected the poll drops right back to a slow safety net -- it exists
+ * only to re-sync if the stream silently stalls.
+ *
+ * @param live whether the price stream is currently connected.
  */
-export function useMarkets() {
+export function useMarkets(live = false) {
   return useQuery({
     queryKey: marketKeys.all,
     queryFn: ({ signal }) => fetchMarkets(signal),
-    refetchInterval: 5_000,
+    refetchInterval: live ? 60_000 : 5_000,
     // Prices are only interesting while the tab is visible.
     refetchIntervalInBackground: false,
     // Keep the last good prices on screen during a refetch instead of

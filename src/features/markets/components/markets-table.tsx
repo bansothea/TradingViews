@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { useMarkets } from "../api/queries";
+import { useMarketStream } from "../api/stream-hooks";
 import { MarketRow } from "./market-row";
 import { SortHeader } from "./sort-header";
 import { TABS, useMarketFilters } from "./use-market-filters";
@@ -20,7 +21,8 @@ function RowSkeleton() {
 }
 
 export function MarketsTable() {
-  const { data, isPending, isError, error, refetch, isFetching } = useMarkets();
+  const live = useMarketStream();
+  const { data, isPending, isError, error, refetch, isFetching } = useMarkets(live);
   const { tab, setTab, query, setQuery, sortKey, desc, toggleSort, rows } =
     useMarketFilters(data?.tickers);
 

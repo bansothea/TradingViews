@@ -8,6 +8,7 @@ import { COIN_META } from "@/features/markets/constants";
 import { CoinIcon } from "@/features/markets/components/coin-icon";
 import { useMarkets } from "@/features/markets/api/queries";
 import { useCandles } from "../api/queries";
+import { useSymbolStream } from "../api/stream-hooks";
 import { findInterval } from "../constants";
 import { PriceChart } from "./price-chart";
 import { IntervalSheet } from "./interval-sheet";
@@ -28,14 +29,18 @@ export function ChartScreen({
   const meta = COIN_META[symbol];
   const intervalMeta = findInterval(interval);
   const { data: candles, isPending, isError, error } = useCandles(symbol, interval);
-  const { data: markets } = useMarkets();
+  const { candle: liveCandle, quote, live } = useSymbolStream(symbol, interval);
+  const { data: markets } = useMarkets(live);
 
   const ticker = markets?.tickers.find((t) => t.symbol === symbol);
   // Fall back to the last candle so the header shows a price even before the
   // markets poll lands.
   const last = candles?.[candles.length - 1];
-  const price = ticker?.price ?? last?.close;
-  const change = ticker?.changePercent;
+  // Ticker frames arrive more often than kline frames, so the streamed quote
+  // is the freshest number on the page; the candle and the REST snapshot are
+  // the fallbacks behind it.
+  const price = quote?.price ?? liveCandle?.close ?? ticker?.price ?? last?.close;
+  const change = quote?.changePercent ?? ticker?.changePercent;
   const up = (change ?? 0) >= 0;
 
   function go(nextSymbol: string, nextInterval: string) {
@@ -99,6 +104,7 @@ export function ChartScreen({
         ) : (
           <PriceChart
             candles={candles}
+            liveCandle={liveCandle}
             precision={pricePrecision(price ?? last?.close ?? 1)}
             symbol={symbol}
             interval={interval}
@@ -130,8 +136,14 @@ export function ChartScreen({
           </svg>
         </button>
 
-        <p className="ml-auto text-xs text-fg-faint">
-          Drag the price axis to zoom
+        <p className="ml-auto inline-flex items-center gap-1.5 text-xs text-fg-faint">
+          <span
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              live ? "bg-up animate-pulse" : "bg-fg-faint"
+            )}
+          />
+          {live ? "Live" : "Connecting…"}
         </p>
       </div>
 
