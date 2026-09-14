@@ -1,0 +1,22 @@
+# Netlify configuration.
+#
+# ---------------------------------------------------------------------------
+# Secrets scanning
+#
+# The scanner fails a build when the value of any environment variable appears
+# in the build output. NEXT_PUBLIC_* variables are inlined into the browser
+# bundle by Next.js -- that is precisely what the prefix means -- so they will
+# always be found, and the scanner has to be told these two are expected.
+#
+# NEXT_PUBLIC_SUPABASE_ANON_KEY is safe to publish. It identifies the project
+# and carries no privileges of its own: every table it can reach is guarded by
+# row level security, which is why the policies in supabase/migrations exist.
+# Supabase ships it to the browser in every client-side integration.
+#
+# SUPABASE_SERVICE_ROLE_KEY is deliberately NOT listed here. It bypasses RLS
+# entirely, must never reach the browser, and this build should keep failing if
+# it ever turns up in output.
+# ---------------------------------------------------------------------------
+
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY"

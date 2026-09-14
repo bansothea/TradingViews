@@ -10,6 +10,9 @@
 # production
 /build
 
+# netlify build output (contains the bundled server chunks)
+/.netlify
+
 # env files
 .env
 .env.local

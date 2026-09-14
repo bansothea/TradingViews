@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 /** Deterministic hue per user, so the fallback is stable across sessions. */
@@ -29,6 +32,10 @@ function initials(name: string | null, email: string | null): string {
  * Most users will never upload anything, so the fallback is the common case
  * rather than an error state -- a generated monogram reads as intentional
  * where a broken-image icon or a grey silhouette does not.
+ *
+ * The fallback also covers a stored URL that fails to load: a provider picture
+ * that starts returning 403, a file deleted out from under the profile, or a
+ * dropped connection. Without that, those all render as a broken-image icon.
  */
 export function Avatar({
   src,
@@ -45,7 +52,11 @@ export function Avatar({
 }) {
   const label = name || email || "Your profile";
 
-  if (src) {
+  // Storing the URL that failed, rather than a boolean, means a later change of
+  // picture is retried instead of being permanently stuck on the fallback.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (src && failedSrc !== src) {
     return (
       <Image
         src={src}
@@ -55,6 +66,7 @@ export function Avatar({
         // Avatars are small and rarely change; letting Next optimise them adds
         // a round trip per user for no saving.
         unoptimized
+        onError={() => setFailedSrc(src)}
         className={cn("shrink-0 rounded-full object-cover", className)}
         style={{ width: size, height: size }}
       />
