@@ -22,6 +22,10 @@
   --color-up: #16c784;
   --color-down: #ea3943;
 
+  /* Caution. Distinct from --color-down: a flagged signal is not a losing one,
+   * and reusing the sell red for "read this carefully" would say otherwise. */
+  --color-warn: #e0a340;
+
   /* ---------------------------------------------------------------------
    * App surfaces (dark).
    *

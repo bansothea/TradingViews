@@ -56,8 +56,20 @@ export function ExploreIcon(props: NavIconProps) {
   );
 }
 
+/** Crosshair over a target — the scanner. */
+export function SignalsIcon(props: NavIconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="7" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  );
+}
+
 export const NAV_ICONS = {
   markets: MarketIcon,
   chart: ChartIcon,
+  signals: SignalsIcon,
   explore: ExploreIcon,
 } as const;

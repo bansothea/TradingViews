@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
@@ -142,7 +143,22 @@ export function ChartScreen({
           </svg>
         </button>
 
-        <p className="ml-auto inline-flex items-center gap-1.5 text-xs text-fg-faint">
+        {/* Deep link rather than an inline panel: the analysis is a page's
+            worth of content, and the chart's job is the chart. The scanner
+            rounds an unscannable interval up and says so. */}
+        <Link
+          href={`/signals?symbol=${symbol}&i=${interval}`}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm font-medium text-fg transition-colors hover:bg-panel"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+          Scan
+        </Link>
+
+        <p className="inline-flex items-center gap-1.5 text-xs text-fg-faint">
           <span
             className={cn(
               "h-1.5 w-1.5 rounded-full",

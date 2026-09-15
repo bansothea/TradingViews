@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getProfile, requireUser } from "@/lib/auth/session";
 import { ProfileForm } from "@/features/profile/components/profile-form";
+import { ApiKeyCard } from "@/features/profile/components/api-key-card";
+import { getApiKeyStatus } from "@/features/profile/api-key-actions";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -9,6 +11,8 @@ export default async function ProfilePage() {
   // Not requireProfile(): a missing row should not hard-fail the page the user
   // opened precisely to fix their details.
   const profile = await getProfile();
+  // Status only -- the key itself never leaves the server.
+  const apiKey = await getApiKeyStatus();
 
   return (
     <div className="mx-auto max-w-xl space-y-5">
@@ -26,6 +30,8 @@ export default async function ProfilePage() {
         avatarUrl={profile?.avatar_url ?? null}
         tier={profile?.tier ?? null}
       />
+
+      <ApiKeyCard status={apiKey} />
     </div>
   );
 }

@@ -6,7 +6,7 @@
 /** Where a signed-in user lands: after login, signup, OAuth and "/" . */
 export const DEFAULT_AUTHED_ROUTE = "/markets";
 
-export type NavId = "markets" | "chart" | "explore";
+export type NavId = "markets" | "chart" | "signals" | "explore";
 
 export interface NavItem {
   id: NavId;
@@ -18,6 +18,7 @@ export interface NavItem {
 export const APP_NAV: NavItem[] = [
   { id: "markets", href: "/markets", label: "Market" },
   { id: "chart", href: "/chart", label: "Chart" },
+  { id: "signals", href: "/signals", label: "Signals" },
   { id: "explore", href: "/explore", label: "Explore" },
 ];
 

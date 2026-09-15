@@ -108,6 +108,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_api_keys: {
+        Row: {
+          user_id: string;
+          provider: string;
+          ciphertext: string;
+          iv: string;
+          auth_tag: string;
+          hint: string | null;
+          verified_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          provider?: string;
+          ciphertext: string;
+          iv: string;
+          auth_tag: string;
+          hint?: string | null;
+          verified_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_api_keys"]["Insert"]>;
+        Relationships: [];
+      };
       signal_requests: {
         Row: {
           id: string;
@@ -144,6 +168,14 @@ export interface Database {
           p_cache_hit?: boolean;
         };
         Returns: boolean;
+      };
+      api_key_status: {
+        Args: { p_provider?: string };
+        Returns: {
+          configured: boolean;
+          hint: string | null;
+          verified_at: string | null;
+        }[];
       };
       tier_daily_limit: {
         Args: { p_tier: SubscriptionTier };

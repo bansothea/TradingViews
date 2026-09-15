@@ -1,4 +1,5 @@
 import { resolveCoinMeta } from "@/features/markets/constants";
+import type { Candle as EngineCandle } from "@/lib/engine";
 import type { Ticker } from "@/features/markets/types";
 import { getUniverse } from "./universe";
 
@@ -121,11 +122,11 @@ export interface Candle {
  * Binance returns klines as positional arrays rather than objects:
  * [openTime, open, high, low, close, volume, closeTime, ...].
  */
-export async function fetchKlines(
+async function fetchRawKlines(
   symbol: string,
   interval: string,
   limit: number
-): Promise<Candle[]> {
+): Promise<unknown[][]> {
   const url = new URL("/api/v3/klines", BASE);
   url.searchParams.set("symbol", symbol);
   url.searchParams.set("interval", interval);
@@ -150,8 +151,44 @@ export async function fetchKlines(
     throw new MarketDataError("Binance rejected the klines request", 502);
   }
 
-  return (raw as unknown[][]).map((c) => ({
+  return raw as unknown[][];
+}
+
+export async function fetchKlines(
+  symbol: string,
+  interval: string,
+  limit: number
+): Promise<Candle[]> {
+  const raw = await fetchRawKlines(symbol, interval, limit);
+
+  return raw.map((c) => ({
     time: Math.floor(Number(c[0]) / 1000),
+    open: Number(c[1]),
+    high: Number(c[2]),
+    low: Number(c[3]),
+    close: Number(c[4]),
+    volume: Number(c[5]),
+  }));
+}
+
+/**
+ * The same klines, in the shape the analysis engine consumes.
+ *
+ * Two differences from the charting shape above, and both matter. Timestamps
+ * are milliseconds rather than seconds, and `closeTime` is carried through --
+ * that is the field which decides whether a candle has finished, and the
+ * engine refuses to analyse one that has not.
+ */
+export async function fetchEngineCandles(
+  symbol: string,
+  interval: string,
+  limit: number
+): Promise<EngineCandle[]> {
+  const raw = await fetchRawKlines(symbol, interval, limit);
+
+  return raw.map((c) => ({
+    openTime: Number(c[0]),
+    closeTime: Number(c[6]),
     open: Number(c[1]),
     high: Number(c[2]),
     low: Number(c[3]),
