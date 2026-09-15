@@ -12,6 +12,8 @@ import { ScanSummary } from "./scan-summary";
 import { ChecklistCard } from "./checklist-card";
 import { PositionCard } from "./position-card";
 import { WaitingState } from "./waiting-state";
+import { NarrativePanel } from "./narrative-panel";
+import { SetupChart } from "./setup-chart";
 
 /**
  * The scanner.
@@ -88,6 +90,13 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
 
           <ScanSummary analysis={data.analysis} pair={data.pair} />
 
+          {/* Levels first: the shape of the trade before its numbers. */}
+          <SetupChart
+            symbol={data.pair.symbol}
+            timeframe={timeframe}
+            setup={data.analysis.primary}
+          />
+
           {data.analysis.primary && data.analysis.grade ? (
             <>
               <PositionCard
@@ -100,6 +109,19 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
           ) : (
             <WaitingState analysis={data.analysis} />
           )}
+
+          {/* Only narrate what is worth describing: a setup, or a near-miss
+              the user is actively watching. Scans that found nothing at all do
+              not spend a call on the user's quota. */}
+          {data.analysis.primary || data.analysis.near.length > 0 ? (
+            <NarrativePanel
+              symbol={data.pair.symbol}
+              timeframe={timeframe}
+              bucket={data.analysis.bucket}
+              analysis={data.analysis}
+              hasApiKey={hasApiKey}
+            />
+          ) : null}
 
           {!hasApiKey ? <KeyPrompt /> : null}
 

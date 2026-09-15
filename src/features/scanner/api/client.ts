@@ -81,3 +81,59 @@ export async function runScan(
 
   return res.json();
 }
+
+export interface Narrative {
+  headline: string;
+  reasoning: string;
+  risk: string;
+  cites: string[];
+  /** True when the model was unavailable and this came from the template. */
+  fallback: boolean;
+}
+
+export interface NarrateResponse {
+  narrative: Narrative;
+  model: string;
+}
+
+export class NarrateError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    /** Set when the user simply has no key configured yet. */
+    readonly needsKey = false
+  ) {
+    super(message);
+    this.name = "NarrateError";
+  }
+}
+
+/**
+ * Asks for the written read of an analysis that is already on screen.
+ *
+ * The analysis is posted back rather than recomputed so the prose is
+ * guaranteed to describe the same numbers the user is looking at -- a second
+ * scan could land on a different candle and quietly narrate something else.
+ */
+export async function runNarration(
+  analysis: unknown,
+  signal?: AbortSignal
+): Promise<NarrateResponse> {
+  const res = await fetch("/api/narrate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ analysis }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new NarrateError(
+      body?.error ?? "Could not write the analysis",
+      res.status,
+      body?.code === "NO_API_KEY"
+    );
+  }
+
+  return res.json();
+}

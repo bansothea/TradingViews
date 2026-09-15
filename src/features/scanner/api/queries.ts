@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { runScan, ScanError } from "./client";
+import { runNarration, runScan, NarrateError, ScanError } from "./client";
 
 export const scanKeys = {
   all: ["scan"] as const,
   one: (symbol: string, timeframe: string) =>
     [...scanKeys.all, symbol, timeframe] as const,
+  narrative: (symbol: string, timeframe: string, bucket: number | null) =>
+    [...scanKeys.all, "narrative", symbol, timeframe, bucket] as const,
 };
 
 /**
@@ -36,6 +38,40 @@ export function useScan(symbol: string, timeframe: string, enabled = true) {
         if (error.status < 500) return false;
       }
       return failureCount < 2;
+    },
+  });
+}
+
+/**
+ * The written read for an analysis already on screen.
+ *
+ * Keyed by candle bucket, not by request: the verdict cannot change until the
+ * next candle closes, so re-rendering, switching tabs and coming back should
+ * never spend another call on the user's own quota. It refetches only when the
+ * bucket moves.
+ *
+ * @param enabled hold this false until there is something worth describing.
+ */
+export function useNarrative(
+  symbol: string,
+  timeframe: string,
+  bucket: number | null,
+  analysis: unknown,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: scanKeys.narrative(symbol, timeframe, bucket),
+    queryFn: ({ signal }) => runNarration(analysis, signal),
+    enabled: enabled && bucket !== null,
+    // Tied to the candle, so nothing below the bucket boundary is worth
+    // re-requesting.
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: (failureCount, error) => {
+      // No key, a rejected key, or exhausted quota will not fix themselves on
+      // a retry -- and each attempt costs the user another call.
+      if (error instanceof NarrateError) return false;
+      return failureCount < 1;
     },
   });
 }

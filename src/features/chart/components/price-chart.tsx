@@ -8,10 +8,33 @@ import {
   LineStyle,
   createChart,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type Time,
 } from "lightweight-charts";
 import type { Candle } from "@/lib/markets/binance";
+
+/**
+ * A level drawn across the chart.
+ *
+ * Kept as plain data rather than pre-styled so the chart owns its own palette:
+ * a stop is red here for the same reason a down candle is, and that decision
+ * belongs in one place.
+ */
+export interface ChartLevel {
+  price: number;
+  label: string;
+  kind: "entry" | "stop" | "target";
+}
+
+const LEVEL_STYLE: Record<ChartLevel["kind"], { color: string; style: LineStyle }> = {
+  // Dashed for the zone edges and targets -- they are prices price may reach,
+  // not prices it has traded. The stop is solid because it is the one line
+  // that must not be ambiguous.
+  entry: { color: "#4d86f7", style: LineStyle.Dashed },
+  stop: { color: "#ea3943", style: LineStyle.Solid },
+  target: { color: "#16c784", style: LineStyle.Dashed },
+};
 
 /**
  * Candlestick chart.
@@ -32,6 +55,7 @@ export function PriceChart({
   precision,
   interval,
   symbol,
+  levels,
 }: {
   candles: Candle[];
   /** The forming candle from the WebSocket, applied on top of the snapshot. */
@@ -40,6 +64,8 @@ export function PriceChart({
   precision: number;
   interval: string;
   symbol: string;
+  /** Entry, stop and target lines for a setup. Omitted on the plain chart. */
+  levels?: ChartLevel[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -47,6 +73,10 @@ export function PriceChart({
   // Tracks which series is on screen, so we only reset the viewport when the
   // user actually switches symbol or interval -- not on every 5s refetch.
   const viewKeyRef = useRef<string>("");
+  // Price lines are owned by the series, not by React, so they have to be
+  // removed by hand before new ones are drawn or they accumulate on every
+  // re-render.
+  const linesRef = useRef<IPriceLine[]>([]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -172,6 +202,30 @@ export function PriceChart({
       close: liveCandle.close,
     });
   }, [liveCandle, symbol, interval]);
+
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+
+    for (const line of linesRef.current) series.removePriceLine(line);
+    linesRef.current = [];
+
+    if (!levels?.length) return;
+
+    linesRef.current = levels.map((level) => {
+      const style = LEVEL_STYLE[level.kind];
+      return series.createPriceLine({
+        price: level.price,
+        color: style.color,
+        lineWidth: 1,
+        lineStyle: style.style,
+        // The label on the price axis is what makes the line readable once the
+        // user scrolls away from the setup.
+        axisLabelVisible: true,
+        title: level.label,
+      });
+    });
+  }, [levels]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }
