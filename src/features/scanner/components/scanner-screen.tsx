@@ -11,7 +11,7 @@ import { ScanForm } from "./scan-form";
 import { ScanSummary } from "./scan-summary";
 import { ChecklistCard } from "./checklist-card";
 import { PositionCard } from "./position-card";
-import { WaitingState } from "./waiting-state";
+import { NoSignal, noSignalChecklist } from "./no-signal";
 import { NarrativePanel } from "./narrative-panel";
 import { SetupChart } from "./setup-chart";
 
@@ -41,9 +41,21 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
     symbol.length > 0
   );
 
+  /**
+   * Runs a scan.
+   *
+   * The URL is updated so the result stays shareable, but the refetch is
+   * triggered explicitly rather than left to the URL change. Pressing Scan on
+   * the pair already displayed produces no navigation at all -- which is
+   * exactly when a user wants to re-check -- and relying on the route to drive
+   * the query made the button do nothing in precisely that case.
+   */
   function go(nextSymbol: string, nextTimeframe: string) {
-    const next = new URLSearchParams({ symbol: nextSymbol.toUpperCase(), i: nextTimeframe });
+    const upper = nextSymbol.toUpperCase();
+    const next = new URLSearchParams({ symbol: upper, i: nextTimeframe });
     router.replace(`/signals?${next}`, { scroll: false });
+
+    if (upper === symbol && nextTimeframe === timeframe) void refetch();
   }
 
   return (
@@ -74,6 +86,8 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
           retryable={!(error instanceof ScanError) || error.timedOut || error.status >= 500}
           onRetry={() => refetch()}
         />
+      ) : isFetching && !data ? (
+        <Scanning symbol={symbol} timeframe={timeframe} />
       ) : !data ? (
         <Skeleton />
       ) : (
@@ -82,9 +96,9 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
               say a newer one is on its way -- otherwise switching pairs looks
               like nothing happened. */}
           {isFetching ? (
-            <p className="flex items-center gap-2 text-xs text-fg-subtle">
+            <p className="flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/5 px-3.5 py-2.5 text-sm text-fg-muted">
               <Spinner className="text-brand" />
-              Scanning {data.pair.base} on {timeframe}…
+              Re-scanning {data.pair.base} on {timeframe}…
             </p>
           ) : null}
 
@@ -97,22 +111,20 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
             setup={data.analysis.primary}
           />
 
-          {data.analysis.primary && data.analysis.grade ? (
-            <>
-              <PositionCard
-                setup={data.analysis.primary}
-                grade={data.analysis.grade}
-                quote={data.pair.quote}
-              />
-              <ChecklistCard checklist={data.analysis.primary.checklist} />
-            </>
+          {data.analysis.primary && data.analysis.grade && data.analysis.grade !== "rejected" ? (
+            <PositionCard
+              setup={data.analysis.primary}
+              grade={data.analysis.grade}
+              quote={data.pair.quote}
+            />
           ) : (
-            <WaitingState analysis={data.analysis} />
+            <NoSignal analysis={data.analysis} />
           )}
 
-          {/* Only narrate what is worth describing: a setup, or a near-miss
-              the user is actively watching. Scans that found nothing at all do
-              not spend a call on the user's quota. */}
+          {/* The written read sits between the verdict and the evidence: it is
+              the explanation of what is above, and the reason for what is
+              below. Only narrate what is worth describing -- scans that found
+              nothing at all do not spend a call on the user's quota. */}
           {data.analysis.primary || data.analysis.near.length > 0 ? (
             <NarrativePanel
               symbol={data.pair.symbol}
@@ -122,6 +134,13 @@ export function ScannerScreen({ hasApiKey }: { hasApiKey: boolean }) {
               hasApiKey={hasApiKey}
             />
           ) : null}
+
+          {(() => {
+            const checklist = data.analysis.primary && data.analysis.grade !== "rejected"
+              ? data.analysis.primary.checklist
+              : noSignalChecklist(data.analysis);
+            return checklist ? <ChecklistCard checklist={checklist} /> : null;
+          })()}
 
           {!hasApiKey ? <KeyPrompt /> : null}
 
@@ -223,6 +242,30 @@ function ErrorState({
           Try again
         </button>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * The first scan of a pair, before anything is on screen.
+ *
+ * Distinct from the inline "re-scanning" line: with no previous result to
+ * dim, silence here is indistinguishable from a broken button -- which is
+ * exactly how it read before.
+ */
+function Scanning({ symbol, timeframe }: { symbol: string; timeframe: string }) {
+  return (
+    <section
+      aria-live="polite"
+      className="rounded-xl border border-line bg-panel px-5 py-12 text-center"
+    >
+      <Spinner className="mx-auto mb-4 h-7 w-7 border-[2.5px] text-brand" />
+      <p className="text-sm font-medium text-fg">
+        Scanning {symbol} on {timeframe}
+      </p>
+      <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-fg-subtle">
+        Reading structure, liquidity and imbalance across three timeframes.
+      </p>
     </section>
   );
 }

@@ -12,10 +12,15 @@ export const scanKeys = {
 /**
  * Runs a scan for one pair and timeframe.
  *
- * A query rather than a mutation: the result is a property of the pair and the
- * candle, not of having pressed a button, so it caches and refetches like any
- * other read. Two people looking at the same pair inside the same candle see
- * the same verdict.
+ * Fetched on demand only. There is no polling interval: a scan is something
+ * the user asks for, and a page quietly re-running analysis every minute
+ * spends Binance requests on a screen nobody is looking at. The verdict
+ * describes a closed candle anyway, so it cannot change between clicks within
+ * the same candle.
+ *
+ * `staleTime` is zero so that pressing Scan again always re-runs. Re-scanning
+ * the same pair is the natural way to ask "has anything changed?", and a cache
+ * that silently swallows the click is why the button felt broken.
  *
  * @param enabled false until the user has actually chosen something to scan.
  */
@@ -24,11 +29,10 @@ export function useScan(symbol: string, timeframe: string, enabled = true) {
     queryKey: scanKeys.one(symbol, timeframe),
     queryFn: ({ signal }) => runScan(symbol, timeframe, signal),
     enabled: enabled && symbol.length > 0 && timeframe.length > 0,
-    // The verdict describes a closed candle, so it cannot move until the next
-    // one closes. Polling faster would return an identical payload.
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-    refetchIntervalInBackground: false,
+    staleTime: 0,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     placeholderData: (previous) => previous,
     retry: (failureCount, error) => {
       if (error instanceof ScanError) {

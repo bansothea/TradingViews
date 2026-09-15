@@ -59,6 +59,7 @@ export {
   conviction,
   grade,
   CONVICTION_THRESHOLD,
+  MIN_SIGNAL_CONVICTION,
   type Analysis,
   type AnalyzeOptions,
   type SetupGrade,

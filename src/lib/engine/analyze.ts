@@ -116,19 +116,36 @@ export function analyze(ctx: AnalysisContext, options: AnalyzeOptions = {}): Ana
  */
 export const CONVICTION_THRESHOLD = 80;
 
-export type SetupGrade = "high" | "flagged";
+/**
+ * Below this, a setup is not shown as a signal at all.
+ *
+ * A trade whose evidence barely holds together is worse than no trade: it
+ * invites action on the weakest reads the engine produces. The user is still
+ * told it exists and why it was withheld -- silence would be indistinguishable
+ * from the engine being broken -- but it is never presented as something to
+ * act on.
+ */
+export const MIN_SIGNAL_CONVICTION = 70;
+
+export type SetupGrade = "high" | "flagged" | "rejected";
 
 /**
- * Grades a setup rather than hiding it.
+ * Grades a setup into one of three bands.
  *
- * A setup below the threshold is still a complete, viable trade -- every
- * required condition held -- it simply arrived without confirmation. Hiding it
- * would throw away information the user asked for; presenting it unmarked
- * would overstate it. So it ships flagged, and the checklist shows exactly
- * which confirmations are missing.
+ *   high      every required condition plus confirmation -- lead with it
+ *   flagged   required conditions held, confirmations did not -- show, marked
+ *   rejected  too weak to present as a signal -- report the absence instead
+ *
+ * The middle band exists because hiding a complete setup throws away
+ * information the user asked for, while presenting it unmarked overstates it.
+ * The bottom band exists because at some point "here is a trade" stops being
+ * an honest description of the evidence.
  */
 export function grade(setup: Setup): SetupGrade {
-  return conviction(setup) >= CONVICTION_THRESHOLD ? "high" : "flagged";
+  const score = conviction(setup);
+  if (score >= CONVICTION_THRESHOLD) return "high";
+  if (score >= MIN_SIGNAL_CONVICTION) return "flagged";
+  return "rejected";
 }
 
 /**
