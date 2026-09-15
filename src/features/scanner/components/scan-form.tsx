@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useMarkets } from "@/features/markets/api/queries";
 import { matchesQuery, matchScore } from "@/features/markets/search";
+import { Spinner } from "@/components/ui/spinner";
 import { SCANNABLE } from "../timeframes";
 
 /**
@@ -126,9 +127,18 @@ export function ScanForm({
         type="button"
         onClick={() => onScan(query || symbol, timeframe)}
         disabled={busy || query.trim().length === 0}
-        className="h-11 shrink-0 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+        // min-width holds the button steady as the label changes between
+        // "Scan" and "Scanning…", so the row does not jump on click.
+        className="inline-flex h-11 min-w-[7.5rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {busy ? "Scanning…" : "Scan"}
+        {busy ? (
+          <>
+            <Spinner />
+            Scanning…
+          </>
+        ) : (
+          "Scan"
+        )}
       </button>
     </div>
   );

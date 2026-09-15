@@ -31,7 +31,13 @@ export function ChartScreen({
   const [intervalOpen, setIntervalOpen] = useState(false);
 
   const intervalMeta = findInterval(interval);
-  const { data: candles, isPending, isError, error } = useCandles(symbol, interval);
+  const {
+    data: candles,
+    isPending,
+    isFetching,
+    isError,
+    error,
+  } = useCandles(symbol, interval);
   const { candle: liveCandle, quote, live } = useSymbolStream(symbol, interval);
   const { data: markets } = useMarkets(live);
 
@@ -57,7 +63,7 @@ export function ChartScreen({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h1 className="truncate text-base font-semibold text-fg">
+            <h1 key={symbol} className="animate-fade truncate text-base font-semibold text-fg">
               {`${meta.base} / ${meta.quote}`}
             </h1>
             {/* Uncurated coins fall back to their ticker as a name, which the
@@ -99,7 +105,17 @@ export function ChartScreen({
         </div>
       </header>
 
-      <div className="relative h-[58dvh] overflow-hidden rounded-xl border border-line bg-panel sm:h-[64dvh]">
+      {/* Switching pair or interval keeps the previous series on screen while
+          the new one loads (placeholderData), which without this reads as
+          nothing having happened. Dimming for the fetch makes the change
+          legible without blanking the chart. */}
+      <div
+        className={cn(
+          "relative h-[58dvh] overflow-hidden rounded-xl border border-line bg-panel sm:h-[64dvh]",
+          "transition-opacity duration-200",
+          isFetching && !isPending && "opacity-50"
+        )}
+      >
         {isError ? (
           <p className="grid h-full place-items-center px-6 text-center text-sm text-fg-muted">
             {error.message}

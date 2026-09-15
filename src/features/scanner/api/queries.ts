@@ -29,8 +29,12 @@ export function useScan(symbol: string, timeframe: string, enabled = true) {
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: (failureCount, error) => {
-      // A bad symbol or an unscannable timeframe will not fix itself.
-      if (error instanceof ScanError && error.status < 500) return false;
+      if (error instanceof ScanError) {
+        // A dropped connection or a timeout is worth one more attempt; a bad
+        // symbol or an unscannable timeframe will not fix itself.
+        if (error.timedOut) return failureCount < 1;
+        if (error.status < 500) return false;
+      }
       return failureCount < 2;
     },
   });

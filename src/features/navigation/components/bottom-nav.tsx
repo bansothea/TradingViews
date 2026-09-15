@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { APP_NAV, isActiveNav } from "@/lib/routes";
 import { cn } from "@/lib/cn";
@@ -10,10 +11,35 @@ import { NAV_ICONS } from "./nav-icons";
  * Mobile tab bar: a floating card rather than a full-width strip, so the
  * content behind it still reads as a continuous page.
  *
- * The active tab is marked by weight and contrast alone -- no pill, no
- * underline. The dashboard layout reserves matching bottom padding so the
- * last row is never trapped underneath.
+ * The active tab is carried by colour, not just weight. Marking it with
+ * contrast alone was too subtle to read at a glance -- on a dark panel the
+ * difference between "muted grey" and "slightly less muted grey" is not a
+ * state anyone notices. Brand colour on the icon and label is the convention
+ * every trading app uses, and it survives being seen out of the corner of an
+ * eye.
  */
+
+/**
+ * A thin progress line across the tab while its route is being fetched.
+ *
+ * Rendered always and toggled by opacity rather than mounted on demand: an
+ * element appearing mid-layout would shift the tab under the user's finger at
+ * exactly the moment they are looking at it.
+ */
+function PendingBar() {
+  const { pending } = useLinkStatus();
+
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "absolute inset-x-5 top-0 h-0.5 origin-left rounded-full bg-brand transition-opacity duration-150",
+        pending ? "animate-pulse opacity-100" : "opacity-0"
+      )}
+    />
+  );
+}
+
 export function BottomNav() {
   const pathname = usePathname();
 
@@ -37,16 +63,18 @@ export function BottomNav() {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1.5 rounded-2xl py-3 transition-colors",
-                active
-                  ? "text-fg"
-                  : "text-fg0 hover:text-fg-muted"
+                "relative flex flex-1 flex-col items-center gap-1.5 rounded-2xl py-3",
+                "transition-colors duration-150",
+                active ? "text-brand" : "text-fg-subtle hover:text-fg-muted",
+                // Pressed feedback on touch, where there is no hover state.
+                "active:scale-95 motion-reduce:active:scale-100"
               )}
             >
-              <Icon strokeWidth={active ? 2 : 1.6} />
+              <PendingBar />
+              <Icon strokeWidth={active ? 2.1 : 1.6} />
               <span
                 className={cn(
-                  "text-[11px] leading-none",
+                  "text-[11px] leading-none transition-[font-weight]",
                   active ? "font-semibold" : "font-medium"
                 )}
               >
