@@ -5,13 +5,22 @@ import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/cn";
 import { formatPercent, formatPrice } from "@/lib/format";
 import { useMarkets } from "@/features/markets/api/queries";
-import { MARKETS } from "@/features/markets/constants";
+import { MARKETS, resolveCoinMeta } from "@/features/markets/constants";
+import { matchesQuery } from "@/features/markets/search";
 import { CoinIcon } from "@/features/markets/components/coin-icon";
 
 /**
- * Symbol picker. Falls back to the static market list when prices have not
- * loaded yet, so the sheet is never an empty box while a request is in flight.
+ * Symbol picker over every tradable pair.
+ *
+ * The list comes from the markets snapshot, so it covers the whole market and
+ * is ordered by volume -- the coins someone is most likely to want are at the
+ * top. The curated static list is the fallback for the moment before that
+ * snapshot lands, so the sheet is never an empty box while a request is in
+ * flight.
  */
+/** Rows rendered before the user is asked to narrow with search. */
+const MAX_ROWS = 60;
+
 export function SymbolSheet({
   open,
   onClose,
@@ -27,15 +36,23 @@ export function SymbolSheet({
   const { data } = useMarkets();
 
   const rows = useMemo(() => {
-    const priced = new Map(data?.tickers.map((t) => [t.symbol, t]) ?? []);
-    const needle = query.trim().toUpperCase();
+    const needle = query.trim();
 
-    return MARKETS.filter(
-      (m) =>
-        !needle ||
-        m.base.includes(needle) ||
-        m.name.toUpperCase().includes(needle)
-    ).map((m) => ({ meta: m, ticker: priced.get(m.symbol) }));
+    const source = data?.tickers.length
+      ? data.tickers.map((t) => ({
+          meta: resolveCoinMeta(t.symbol, t.base, t.quote),
+          ticker: t,
+        }))
+      : MARKETS.map((m) => ({ meta: m, ticker: undefined }));
+
+    // Same matcher as the markets table, so a query that finds a coin there
+    // finds it here too.
+    const matched = source.filter(({ meta }) => matchesQuery(meta, needle));
+
+    // Hundreds of rows in a sheet is a long scroll and a lot of DOM for a
+    // picker. Volume order means the cut falls on coins nobody is hunting for
+    // by scrolling -- and search reaches the rest.
+    return { visible: matched.slice(0, MAX_ROWS), hidden: Math.max(0, matched.length - MAX_ROWS) };
   }, [data, query]);
 
   return (
@@ -52,13 +69,13 @@ export function SymbolSheet({
         />
       </div>
 
-      {rows.length === 0 ? (
+      {rows.visible.length === 0 ? (
         <p className="py-10 text-center text-sm text-fg0">
           No coins match “{query}”.
         </p>
       ) : (
         <ul className="divide-y divide-line-soft">
-          {rows.map(({ meta, ticker }) => {
+          {rows.visible.map(({ meta, ticker }) => {
             const active = meta.symbol === value;
 
             return (
@@ -115,6 +132,13 @@ export function SymbolSheet({
           })}
         </ul>
       )}
+
+      {rows.hidden > 0 ? (
+        <p className="py-4 text-center text-xs text-fg-faint">
+          {rows.hidden} more {rows.hidden === 1 ? "pair" : "pairs"} — search to
+          narrow.
+        </p>
+      ) : null}
     </Sheet>
   );
 }

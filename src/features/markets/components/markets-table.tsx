@@ -1,11 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useMarkets } from "../api/queries";
 import { useMarketStream } from "../api/stream-hooks";
 import { MarketRow } from "./market-row";
+import { Pagination } from "./pagination";
 import { SortHeader } from "./sort-header";
 import { TABS, useMarketFilters } from "./use-market-filters";
+
+/** Settling time before the socket follows a change in the visible rows. */
+const SUBSCRIBE_DEBOUNCE_MS = 500;
 
 function RowSkeleton() {
   return (
@@ -21,10 +26,48 @@ function RowSkeleton() {
 }
 
 export function MarketsTable() {
-  const live = useMarketStream();
+  /**
+   * The socket subscribes to the page on screen, but the page is only known
+   * after the snapshot has loaded and been filtered -- which in turn depends
+   * on whether the socket is live. Holding the symbol list in state breaks
+   * that cycle: paging costs one extra render, then the subscription follows.
+   */
+  const [streamSymbols, setStreamSymbols] = useState<string[]>([]);
+  const live = useMarketStream(streamSymbols);
   const { data, isPending, isError, error, refetch, isFetching } = useMarkets(live);
-  const { tab, setTab, query, setQuery, sortKey, desc, toggleSort, rows } =
-    useMarketFilters(data?.tickers);
+  const {
+    tab,
+    setTab,
+    query,
+    setQuery,
+    sortKey,
+    desc,
+    toggleSort,
+    pageRows,
+    page,
+    pageCount,
+    setPage,
+    pageSize,
+    setPageSize,
+    total,
+    rangeStart,
+    rangeEnd,
+  } = useMarketFilters(data?.tickers);
+
+  // Compare by value: pageRows is a fresh array on every tick, so depending on
+  // the array itself would resubscribe several times a second.
+  const visibleKey = pageRows.map((t) => t.symbol).join(",");
+
+  useEffect(() => {
+    // Debounced: live ticks change volumes, which reorders a volume-sorted
+    // table, which can flip the last row of a page back and forth. Without
+    // this the socket would tear down and reconnect on that churn.
+    const timer = setTimeout(
+      () => setStreamSymbols(visibleKey ? visibleKey.split(",") : []),
+      SUBSCRIBE_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [visibleKey]);
 
   return (
     <section className="overflow-hidden rounded-xl border border-line bg-app">
@@ -104,14 +147,27 @@ export function MarketsTable() {
               Try again
             </button>
           </div>
-        ) : rows.length === 0 ? (
+        ) : pageRows.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm text-fg0">
             No coins match “{query}”.
           </p>
         ) : (
-          rows.map((t) => <MarketRow key={t.symbol} ticker={t} />)
+          pageRows.map((t) => <MarketRow key={t.symbol} ticker={t} />)
         )}
       </div>
+
+      {data && !isError ? (
+        <Pagination
+          page={page}
+          pageCount={pageCount}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={setPageSize}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          total={total}
+        />
+      ) : null}
 
       {data ? (
         <div className="flex items-center justify-between border-t border-line px-5 py-2.5 text-xs text-fg-faint">
@@ -124,9 +180,9 @@ export function MarketsTable() {
             />
             Live · Binance
           </span>
-          <span className="tabular-nums">
-            {rows.length} {rows.length === 1 ? "pair" : "pairs"}
-          </span>
+          {/* The socket only carries the page on screen, so say which mode
+              the visible rows are actually updating in. */}
+          <span>{live ? "Streaming this page" : "Polling"}</span>
         </div>
       ) : null}
     </section>

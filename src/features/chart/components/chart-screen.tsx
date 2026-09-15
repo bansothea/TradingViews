@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { formatPercent, formatPrice, pricePrecision } from "@/lib/format";
-import { COIN_META } from "@/features/markets/constants";
+import type { CoinMeta } from "@/features/markets/constants";
 import { CoinIcon } from "@/features/markets/components/coin-icon";
 import { useMarkets } from "@/features/markets/api/queries";
 import { useCandles } from "../api/queries";
@@ -17,16 +17,18 @@ import { CandleCountdown } from "./candle-countdown";
 
 export function ChartScreen({
   symbol,
+  meta,
   interval,
 }: {
   symbol: string;
+  /** Resolved on the server, so the header renders on first paint. */
+  meta: CoinMeta;
   interval: string;
 }) {
   const router = useRouter();
   const [symbolOpen, setSymbolOpen] = useState(false);
   const [intervalOpen, setIntervalOpen] = useState(false);
 
-  const meta = COIN_META[symbol];
   const intervalMeta = findInterval(interval);
   const { data: candles, isPending, isError, error } = useCandles(symbol, interval);
   const { candle: liveCandle, quote, live } = useSymbolStream(symbol, interval);
@@ -50,14 +52,18 @@ export function ChartScreen({
   return (
     <div className="space-y-3">
       <header className="flex items-start gap-3">
-        {meta ? <CoinIcon base={meta.base} color={meta.color} size={34} /> : null}
+        <CoinIcon base={meta.base} color={meta.color} size={34} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <h1 className="truncate text-base font-semibold text-fg">
-              {meta ? `${meta.base} / ${meta.quote}` : symbol}
+              {`${meta.base} / ${meta.quote}`}
             </h1>
-            <span className="text-xs text-fg0">{meta?.name}</span>
+            {/* Uncurated coins fall back to their ticker as a name, which the
+                heading already shows -- no point repeating it. */}
+            {meta.name === meta.base ? null : (
+              <span className="text-xs text-fg0">{meta.name}</span>
+            )}
           </div>
 
           <div className="flex items-baseline gap-2">
@@ -119,7 +125,7 @@ export function ChartScreen({
           onClick={() => setSymbolOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-panel px-3.5 py-2 text-sm font-semibold text-fg transition-colors hover:bg-panel-2"
         >
-          {meta?.base ?? symbol}
+          {meta.base}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="m6 9 6 6 6-6" />
           </svg>

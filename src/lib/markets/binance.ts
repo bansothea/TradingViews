@@ -1,5 +1,6 @@
-import { COIN_META, MARKET_SYMBOLS } from "@/features/markets/constants";
+import { resolveCoinMeta } from "@/features/markets/constants";
 import type { Ticker } from "@/features/markets/types";
+import { getUniverse } from "./universe";
 
 /**
  * Public market data host.
@@ -10,6 +11,9 @@ import type { Ticker } from "@/features/markets/types";
  * Override with BINANCE_DATA_URL if you need to point somewhere else.
  */
 const BASE = process.env.BINANCE_DATA_URL ?? "https://data-api.binance.vision";
+
+/** Shared-cache window for the full-market ticker snapshot. */
+const TICKER_TTL_SECONDS = 5;
 
 /** Shape of the fields we read off /api/v3/ticker/24hr. */
 interface RawTicker {
@@ -29,24 +33,28 @@ export class MarketDataError extends Error {
 }
 
 /**
- * Batch 24h ticker fetch.
+ * 24h tickers for every USDT spot pair.
  *
- * One request for every pair rather than one per pair: Binance weights the
- * batch call far below N individual calls, and it keeps every row on the page
- * consistent with the same instant.
+ * One unfiltered request rather than a `symbols=[...]` batch: the batch URL
+ * for ~400 pairs is several kilobytes of query string, Binance charges the
+ * same request weight either way, and the unfiltered response is a single
+ * cache entry shared by every client instead of one per symbol set. The
+ * universe then decides which rows survive.
+ *
+ * Every row comes from the same instant, so the table is internally
+ * consistent and sorting by volume across the whole market is meaningful.
  */
-export async function fetchTickers(
-  symbols: string[] = MARKET_SYMBOLS
-): Promise<Ticker[]> {
-  const url = new URL("/api/v3/ticker/24hr", BASE);
-  url.searchParams.set("symbols", JSON.stringify(symbols));
-
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(10_000),
-    // Cache briefly so a burst of clients polling in the same second collapses
-    // into a single upstream request.
-    next: { revalidate: 5 },
-  });
+export async function fetchTickers(): Promise<Ticker[]> {
+  const [universe, res] = await Promise.all([
+    getUniverse(),
+    fetch(new URL("/api/v3/ticker/24hr", BASE), {
+      signal: AbortSignal.timeout(15_000),
+      // Cache briefly so a burst of clients polling in the same second
+      // collapses into a single upstream request. This response is large, so
+      // the shared cache entry matters more here than it did for 30 symbols.
+      next: { revalidate: TICKER_TTL_SECONDS },
+    }),
+  ]);
 
   if (!res.ok) {
     throw new MarketDataError(
@@ -57,8 +65,7 @@ export async function fetchTickers(
 
   const raw = (await res.json()) as RawTicker[] | { code: number; msg: string };
 
-  // Binance answers errors with an object, not an array -- an unknown symbol
-  // in the batch fails the whole request.
+  // Binance answers errors with an object rather than an array.
   if (!Array.isArray(raw)) {
     throw new MarketDataError(
       `Binance rejected the request: ${"msg" in raw ? raw.msg : "unknown error"}`,
@@ -67,19 +74,25 @@ export async function fetchTickers(
   }
 
   const tickers = raw.flatMap((t): Ticker[] => {
-    const meta = COIN_META[t.symbol];
-    // A symbol we have no metadata for cannot be rendered; drop it rather than
-    // showing an unlabelled row.
-    if (!meta) return [];
+    // Drops the thousands of non-USDT pairs, plus anything halted or delisted.
+    const pair = universe.get(t.symbol);
+    if (!pair) return [];
+
+    const price = Number(t.lastPrice);
+    // A pair listed but never traded prices at 0, which would sort to the top
+    // of "cheapest" and render as "0.00" -- not a market anyone can act on.
+    if (!Number.isFinite(price) || price <= 0) return [];
+
+    const meta = resolveCoinMeta(pair.symbol, pair.base, pair.quote);
 
     return [
       {
         symbol: t.symbol,
-        base: meta.base,
-        quote: meta.quote,
+        base: pair.base,
+        quote: pair.quote,
         name: meta.name,
         color: meta.color,
-        price: Number(t.lastPrice),
+        price,
         changePercent: Number(t.priceChangePercent),
         quoteVolume: Number(t.quoteVolume),
         high: Number(t.highPrice),
@@ -88,7 +101,8 @@ export async function fetchTickers(
     ];
   });
 
-  // Highest dollar volume first -- the default "All" ordering users expect.
+  // Highest dollar volume first -- the default "All" ordering users expect,
+  // and the order the first page of results is drawn from.
   return tickers.sort((a, b) => b.quoteVolume - a.quoteVolume);
 }
 

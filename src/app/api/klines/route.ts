@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { fetchKlines, MarketDataError } from "@/lib/markets/binance";
 import { getUser } from "@/lib/auth/session";
-import { MARKET_SYMBOLS } from "@/features/markets/constants";
+import { findPair } from "@/lib/markets/universe";
 import { CANDLE_LIMIT, isValidInterval } from "@/features/chart/constants";
 
 /** Candles proxy. Same reasoning as /api/markets -- see that route. */
@@ -16,13 +16,24 @@ export async function GET(request: NextRequest) {
   const interval = searchParams.get("interval") ?? "";
 
   // Both values are forwarded into an upstream URL, so they are validated
-  // against fixed allowlists rather than merely encoded.
-  if (!MARKET_SYMBOLS.includes(symbol)) {
-    return NextResponse.json({ error: "Unsupported symbol" }, { status: 400 });
-  }
-
+  // against allowlists rather than merely encoded. The interval list is fixed;
+  // the symbol is checked against Binance's live tradable pairs, which is what
+  // lets the app cover the whole market without a hand-maintained list.
   if (!isValidInterval(interval)) {
     return NextResponse.json({ error: "Unsupported interval" }, { status: 400 });
+  }
+
+  try {
+    if (!(await findPair(symbol))) {
+      return NextResponse.json({ error: "Unsupported symbol" }, { status: 400 });
+    }
+  } catch {
+    // The pair list is unavailable, so we cannot vouch for the symbol. Refuse
+    // rather than forward an unvalidated value upstream.
+    return NextResponse.json(
+      { error: "Could not load candles" },
+      { status: 502 }
+    );
   }
 
   try {

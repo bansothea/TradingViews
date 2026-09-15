@@ -1,9 +1,13 @@
 /**
- * The pairs shown on the markets home, with the display metadata Binance does
- * not provide (a readable name and a brand colour for the coin mark).
+ * Display metadata for coins: a readable name and a brand colour, neither of
+ * which Binance returns.
  *
- * Every symbol here must exist on Binance spot as a USDT pair -- an unknown
- * symbol makes the whole batch request fail, not just that row.
+ * This list is *not* the set of pairs the app supports -- that comes from
+ * Binance exchangeInfo at runtime (see lib/markets/universe.ts), so every
+ * USDT spot pair is listed and tradable. This is the curated polish on top:
+ * a coin named here renders with its real name and brand colour, and any
+ * other coin falls back to its ticker and a generated colour. Adding an entry
+ * here is optional and never gates a pair.
  */
 export interface CoinMeta {
   /** Binance pair, e.g. BTCUSDT */
@@ -15,6 +19,12 @@ export interface CoinMeta {
   /** Used for the coin mark gradient. */
   color: string;
 }
+
+/**
+ * The only quote asset the app lists. Single-quote keeps prices directly
+ * comparable between rows and every value a dollar figure.
+ */
+export const QUOTE_ASSET = "USDT";
 
 export const MARKETS: CoinMeta[] = [
   { symbol: "BTCUSDT", base: "BTC", quote: "USDT", name: "Bitcoin", color: "#f7931a" },
@@ -49,8 +59,44 @@ export const MARKETS: CoinMeta[] = [
   { symbol: "ENAUSDT", base: "ENA", quote: "USDT", name: "Ethena", color: "#7c5cff" },
 ];
 
-export const MARKET_SYMBOLS = MARKETS.map((m) => m.symbol);
-
 export const COIN_META: Record<string, CoinMeta> = Object.fromEntries(
   MARKETS.map((m) => [m.symbol, m])
 );
+
+/**
+ * Deterministic colour for a coin we have no brand colour for.
+ *
+ * Derived from the ticker so a coin keeps the same mark on every render and
+ * every device. Saturation and lightness are fixed in a band that stays
+ * legible behind white text in both themes; only the hue varies.
+ */
+function generatedColor(base: string): string {
+  let hash = 0;
+  for (let i = 0; i < base.length; i += 1) {
+    // Classic string hash; the shift-and-subtract keeps short tickers that
+    // share a prefix (SOL / SOLV) well apart on the wheel.
+    hash = (hash << 5) - hash + base.charCodeAt(i);
+    hash |= 0;
+  }
+  return `hsl(${Math.abs(hash) % 360} 62% 48%)`;
+}
+
+/**
+ * Display metadata for any pair, curated or not.
+ *
+ * @param symbol Binance pair, e.g. BTCUSDT
+ * @param base   Base asset from exchangeInfo, e.g. BTC
+ * @param quote  Quote asset from exchangeInfo, e.g. USDT
+ */
+export function resolveCoinMeta(
+  symbol: string,
+  base: string,
+  quote: string = QUOTE_ASSET
+): CoinMeta {
+  const curated = COIN_META[symbol];
+  if (curated) return curated;
+
+  // No curated name: the ticker is the best label we have, and it is what the
+  // row already shows in bold -- better an honest "ARKM" than an invented name.
+  return { symbol, base, quote, name: base, color: generatedColor(base) };
+}
